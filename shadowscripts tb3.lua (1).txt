@@ -1,0 +1,2372 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/NIcoGabrielRealYtr/lds13-Library/refs/heads/main/Source"))()
+
+local Window = Library:Window({ 
+    Name = "shadow Scripts", 
+    SubTitle = "SubName", 
+    TimeRemaining = 2000
+}) 
+
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Global runtime variables for functionality
+local speed = 16
+local boostMultiplier = 2
+local enhancedWalk = false
+local currentJumpPower = 50
+local jumpPowerEnabled = false
+local infJump
+local infJumpDebounce = false
+
+local character, humanoid, humanoidRootPart
+local bodyGyro
+local movementConnection
+local freezeConnection
+local animationTrack
+
+local animation = Instance.new("Animation")
+animation.AnimationId = "rbxassetid://78828590676720"
+
+-- Gun Modification Module Configuration States
+local MIN_FIRE_RATE = 0.07 
+local autoEnabled = false 
+local noRateEnabled = false 
+
+-- ==================== PAGES ==================== 
+-- ==================== PAGES ==================== 
+local DiscordPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 }) -- 👤 User Profile Tab
+local VisualsPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 })     -- 🏠 House/Base Tab
+local PlayerPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 })      -- 🔫 Gun Blaster Tab
+local CombatPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 })      -- 💰 Money Bag Tab
+local SkyboxPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 })      -- 👁️ Eye/Visuals Tab
+local EspPage = Window:Page({ Icon = "rbxassetid://129793670226045", Columns = 2 })      -- 👁️ Eye/Visuals Tab
+-- ==================== SECTIONS ==================== 
+-- FIRST TAB (DiscordPage)
+local DiscordSection = DiscordPage:Section({ Name = "Discord", Icon = "129793670226045", Side = 1 }) 
+local EmoteSection = DiscordPage:Section({ Name = "Emotes", Icon = "129793670226045", Side = 1 }) 
+-- MOVED PLAYER MOVEMENT TO THE FIRST TAB (Right Side)
+PlayerMovementGroupBox = DiscordPage:Section({ Name = "Player Movement", Icon = "129793670226045", Side = 2 }) 
+
+-- SECOND TAB (VisualsPage Stack) 
+local TeleportSection = VisualsPage:Section({ Name = "Teleports", Icon = "129793670226045", Side = 1 }) 
+local HouseTeleportGroupBox = VisualsPage:Section({ Name = "House Teleports 🏠", Icon = "129793670226045", Side = 2 }) 
+PlayerTeleportGroupBox = VisualsPage:Section({ Name = "Player Teleports 👥", Icon = "rbxassetid://89159918534346", Side = 2 })
+
+-- FOURTH TAB (CombatPage Stack - Left Side)
+OrbyGroup = CombatPage:Section({ Name = "Orby Bullet Mods", Icon = "129793670226045", Side = 1 })
+GunModGroupBox = CombatPage:Section({ Name = "Gun Modifications 🔫", Icon = "129793670226045", Side = 1 })
+
+-- Skybox Section Layout (Left Side)
+local SkyboxSection = SkyboxPage:Section({ Name = "Skybox Changer 🌌", Icon = "129793670226045", Side = 1 })
+
+-- Left Side Column (For Day/Night Changer and FPS Settings)
+TimeUtilitySection = SkyboxPage:Section({ Name = "Time changer ⚙️", Icon = "129793670226045", Side = 1 })
+
+-- ==================== DISCORD SECTION ELEMENTS ====================
+local DiscordButton = DiscordSection:Button({ 
+    Name = "Copy Invite Link", 
+    Callback = function() 
+        setclipboard("https://discord.gg/KSZNU34s5q") 
+        Library:Notification("Copied to clipboard!", "129793670226045", 3) 
+    end 
+})
+-- ==================== EMOTES CONFIGURATION DATA ====================
+local _emoteList = { 
+    { Name = "Gang Walkn", Id = "129559554023672" }, { Name = "Jabba Switchn", Id = "116714406076290" }, 
+    { Name = "Druski PopOut", Id = "111060112236071" }, { Name = "Rakai", Id = "115858722399476" }, 
+    { Name = "Street Glide", Id = "82378883639086" }, { Name = "T Groove", Id = "72262445362529" }, 
+    { Name = "Uzi", Id = "110773304057672" }, { Name = "BRAZIL!", Id = "74463964958077" }, 
+    { Name = "Uh", Id = "98621274661025" }, { Name = "Tangn Philly", Id = "131094292737962" }, 
+    { Name = "CSnoop", Id = "86123328011397" }, { Name = "Louisiana Jig", Id = "126597745883758" }, 
+    { Name = "Tapout", Id = "91336823006818" }, { Name = "Air Cycle", Id = "94324173536622" }, 
+    { Name = "Assumptions", Id = "91294374426630" }, { Name = "Basketball Headspin", Id = "92854797386719" }, 
+    { Name = "Beat Da Koto Nai", Id = "93497729736287" }, { Name = "Biblically Accurate", Id = "109873544976020" }, 
+    { Name = "Billy Bounce", Id = "137501135905857" }, { Name = "Bird", Id = "85513310484654" }, 
+    { Name = "Caramelldansen", Id = "88315693621494" }, { Name = "Chinese Dance", Id = "131758838511368" }, 
+    { Name = "Classic Walk", Id = "107806791584829" }, { Name = "Cute Stomach Lay", Id = "80754582835479" }, 
+    { Name = "Da Hood Dance", Id = "108171959207138" }, { Name = "Fake Death", Id = "88130117312312" }, 
+    { Name = "Fight Stance", Id = "116763940575803" }, { Name = "Float", Id = "89523370947906" }, 
+    { Name = "Lay Float", Id = "77840765435893" }, { Name = "Floppin Fish", Id = "79075971527754" }, 
+    { Name = "Flying", Id = "138433137191760" }, { Name = "Flying Legs", Id = "130932988394284" }, 
+    { Name = "Fropper", Id = "116039975531632" }, { Name = "Fumo Flush", Id = "107217181254431" }, 
+    { Name = "Shoulder Taps", Id = "85422671683973" }, { Name = "Helicopter", Id = "95301257497525" }, 
+    { Name = "Helicopter 2", Id = "91257498644328" }, { Name = "Jackhammer", Id = "91423662648449" }, 
+    { Name = "Jojo Pose", Id = "120629563851640" }, { Name = "Laced", Id = "135611169366768" }, 
+    { Name = "Buddha", Id = "86872878957632" }, { Name = "Monstermash", Id = "137883764619555" }, 
+    { Name = "Oh Who Is You", Id = "81389876137866" }, { Name = "Parrot", Id = "101810746304426" }, 
+    { Name = "Push Up", Id = "115703320436202" }, { Name = "Rizz Backup", Id = "131205329995035" }, 
+    { Name = "Shot", Id = "102691551292124" }, { Name = "Slickback", Id = "74288964113793" }, 
+    { Name = "Soda Pop", Id = "105459130960429" }, { Name = "Take The L", Id = "78653596566468" }, 
+    { Name = "The Worm", Id = "90333292347820" }, { Name = "Spider Man Hang", Id = "128616254665784" }, 
+    { Name = "Weird Boy", Id = "87025086742503" }, { Name = "Xavier", Id = "90802740360125" }, 
+    { Name = "Dougie", Id = "126035888065434" }, { Name = "Sturdy", Id = "132555082396072" }, 
+    { Name = "Sturdy 2", Id = "130887055054422" }, { Name = "Zesty Sturdy", Id = "115992344778101" }, 
+    { Name = "Inch Worm", Id = "119096405600200" }, { Name = "Crazy Worm", Id = "100400724934213" }, 
+    { Name = "Scuba", Id = "140349022227594" }, { Name = "Griddy", Id = "81913798511136" }, 
+    { Name = "Tylil Dance", Id = "110494040742516" }, { Name = "Get The Money", Id = "96649139759245" }, 
+    { Name = "SpiderMan 2", Id = "88841065236214" }, { Name = "Goofy", Id = "118417760427139" }, 
+    { Name = "Floss", Id = "5917459365" }, { Name = "Hype Dance", Id = "5918726674" }, 
+    { Name = "Zombie", Id = "616163682" } 
+}
+local _emoteNames = {} 
+local _emoteMap = {} 
+for _, e in ipairs(_emoteList) do 
+    table.insert(_emoteNames, e.Name) 
+    _emoteMap[e.Name] = e.Id 
+end 
+local _selectedEmote = _emoteNames 
+local _currentEmoteAnim = nil
+
+-- ==================== EMOTES SECTION ELEMENTS ====================
+local EmoteDropdown = EmoteSection:Dropdown({ 
+    Name = "Select Emote", 
+    Flag = "EmoteDropdown", 
+    Items = _emoteNames, 
+    Default = _selectedEmote, 
+    Multi = false, 
+    Callback = function(val) 
+        _selectedEmote = val 
+    end 
+}) 
+
+local PlayEmoteButton = EmoteSection:Button({ 
+    Name = "Play Emote", 
+    Callback = function() 
+        if not _selectedEmote or not _emoteMap[_selectedEmote] then return end 
+        local Character = player and player.Character 
+        if not Character then return end 
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid") 
+        if not Humanoid then return end 
+        local Animator = Humanoid:FindFirstChildOfClass("Animator") 
+        if not Animator then return end 
+        
+        if _currentEmoteAnim then 
+            pcall(function() _currentEmoteAnim:Stop() end) 
+            _currentEmoteAnim = nil 
+        end 
+        
+        local anim = Instance.new("Animation") 
+        anim.AnimationId = "rbxassetid://" .. _emoteMap[_selectedEmote] 
+        local track = Animator:LoadAnimation(anim) 
+        track:Play() 
+        _currentEmoteAnim = track 
+        
+        if Library and Library.Notification then 
+            Library:Notification("Playing: " .. _selectedEmote, "90449909165261", 2) 
+        end 
+    end 
+}) 
+
+local StopEmoteButton = EmoteSection:Button({ 
+    Name = "Stop Emote", 
+    Callback = function() 
+        if _currentEmoteAnim then 
+            pcall(function() _currentEmoteAnim:Stop() end) 
+            _currentEmoteAnim = nil 
+            if Library and Library.Notification then 
+                Library:Notification("Emote stopped.", "90449909165261", 2) 
+            end 
+        end 
+    end 
+})
+-- ==================== ENHANCED WALK ENGINE MECHANICS ====================
+getgenv().SwimMethod = false
+
+task.spawn(function()
+    while task.wait() do 
+        if enhancedWalk then 
+            if not getgenv().SwimMethod then getgenv().SwimMethod = true end 
+            if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.FallingDown) end 
+        end 
+    end 
+end)
+
+local function updateCharacterRefs() 
+    character = player.Character or player.CharacterAdded:Wait() 
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart") 
+    humanoid = character:WaitForChild("Humanoid") 
+end
+
+local function cleanup() 
+    if movementConnection then movementConnection:Disconnect() movementConnection = nil end 
+    if freezeConnection then freezeConnection:Disconnect() freezeConnection = nil end 
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end 
+    if animationTrack then animationTrack:Stop() animationTrack = nil end 
+end
+
+local function setupMovement() 
+    if not humanoidRootPart then return end 
+    bodyGyro = Instance.new("BodyGyro") 
+    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge) 
+    bodyGyro.P = 50000 
+    bodyGyro.D = 1000 
+    bodyGyro.CFrame = humanoidRootPart.CFrame 
+    bodyGyro.Parent = humanoidRootPart 
+    
+    movementConnection = RunService.RenderStepped:Connect(function() 
+        if not enhancedWalk then return end 
+        local camera = workspace.CurrentCamera 
+        local dir = Vector3.zero 
+        local usingKeys = false 
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then 
+            dir += Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z) usingKeys = true 
+        end 
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then 
+            dir -= Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z) usingKeys = true 
+        end 
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then 
+            dir -= camera.CFrame.RightVector usingKeys = true 
+        end 
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then 
+            dir += camera.CFrame.RightVector usingKeys = true 
+        end 
+        if not usingKeys then 
+            local md = humanoid.MoveDirection dir = Vector3.new(md.X, 0, md.Z) 
+        end 
+        
+        local moveSpeed = speed 
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveSpeed = moveSpeed * boostMultiplier end 
+        if dir.Magnitude > 0 then dir = dir.Unit * moveSpeed end 
+        
+        local currentY = humanoidRootPart.AssemblyLinearVelocity.Y 
+        local groundedY = math.clamp(currentY, -100, -2) 
+        humanoidRootPart.AssemblyLinearVelocity = Vector3.new(dir.X, groundedY, dir.Z) 
+        
+        if dir.Magnitude > 0 then 
+            local look = dir.Unit 
+            bodyGyro.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + Vector3.new(look.X, 0, look.Z)) 
+        end 
+        
+        humanoidRootPart.RotVelocity = Vector3.zero 
+        humanoidRootPart.AssemblyAngularVelocity = Vector3.zero 
+        
+        if dir.Magnitude > 0 then 
+            if not animationTrack.IsPlaying then animationTrack:Play() end 
+        else 
+            if animationTrack.IsPlaying then animationTrack:Stop() end 
+        end 
+    end) 
+end
+
+local function startEnhancedWalk() 
+    enhancedWalk = true 
+    updateCharacterRefs() 
+    cleanup() 
+    humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) 
+    getgenv().SwimMethod = true 
+    
+    if Library and Library.Notification then 
+        Library:Notification("Bypassing anti-cheat, please wait...", "129793670226045", 3) 
+    end 
+    
+    freezeConnection = RunService.RenderStepped:Connect(function() 
+        if enhancedWalk then 
+            if not getgenv().SwimMethod then getgenv().SwimMethod = true end 
+            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(0,0,0) 
+        end 
+    end) 
+    
+    local animator = humanoid:FindFirstChildWhichIsA("Animator") or Instance.new("Animator", humanoid) 
+    animationTrack = animator:LoadAnimation(animation) 
+    animationTrack.Looped = true 
+    
+    task.delay(3, function() 
+        if freezeConnection then freezeConnection:Disconnect() freezeConnection = nil end 
+        if enhancedWalk then 
+            setupMovement() 
+            if Library and Library.Notification then 
+                Library:Notification("Enhanced walk speed is now enabled.", "90449909165261", 3) 
+            end 
+        end 
+    end) 
+end
+
+local function stopEnhancedWalk() 
+    enhancedWalk = false 
+    cleanup() 
+    getgenv().SwimMethod = false 
+end
+
+player.CharacterAdded:Connect(function() 
+    task.wait(1) 
+    updateCharacterRefs() 
+    if enhancedWalk then startEnhancedWalk() end 
+end)
+
+-- ==================== WEAPON MOD ENGINE UTILITIES ====================
+local function GetGunSettings() 
+    local char = player.Character 
+    local tool = char and char:FindFirstChildOfClass("Tool") 
+    if not tool or not tool:FindFirstChild("Setting") then 
+        Library:Notification("Equip a gun first!", "129793670226045", 2)
+        return nil 
+    end 
+    return require(tool.Setting), tool 
+end 
+
+local function applyGunSettings() 
+    local tool = player.Character and player.Character:FindFirstChildOfClass("Tool") 
+    if not tool or not tool:FindFirstChild("Setting") then return end 
+    local settings = require(tool.Setting) 
+    if autoEnabled and noRateEnabled then 
+        settings.Auto = true 
+        settings.FireRate = MIN_FIRE_RATE 
+    elseif autoEnabled then 
+        settings.Auto = true 
+    elseif noRateEnabled then 
+        settings.FireRate = 0 
+    end 
+end
+-- ==================== TELEPORT LOCATIONS MAP ====================
+local locations = { 
+    ["🚗 Car Dealer"] = Vector3.new(-409.63, 253.41, -1230.14), 
+    ["🧺 New Laundry"] = Vector3.new(-1216.24, 253.88, -3969.89), 
+    ["🍴 New Deli"] = Vector3.new(-1388.31, 268.14, -3897.86), 
+    ["💰 New Seller"] = Vector3.new(-965.27, 260.19, -4244.83), 
+    ["🏦 New Bank"] = Vector3.new(-1217.30, 253.88, -3635.04), 
+    ["🏪 Market"] = Vector3.new(-405.17, 334.31, -562.63), 
+    ["🏢 New Penthouse"] = Vector3.new(-1488.06, 476.30, -3747.01), 
+    ["🎒 Backpack"] = Vector3.new(-725.64, 253.92, -684.30), 
+    ["🎙 Studio"] = Vector3.new(93408.45, 14484.90, 570.14), 
+    ["🔫 2nd Gunshop"] = Vector3.new(66196.08, 123615.89, 5749.09), 
+    ["💦 Dripstore"] = Vector3.new(67462.32, 10489.21, 549.60), 
+    ["🍃 Exotic"] = Vector3.new(-1519.52, 272.15, -983.73), 
+    ["🏬 RPT"] = Vector3.new(-1744.10, 236.95, -596.03), 
+    ["🏠 Random House"] = Vector3.new(-1228.93, 261.04, -3758.50), 
+    ["🔫 Gunshop"] = Vector3.new(92960.12, 122098.50, 17253.95), 
+    ["🛒 Dollar General"] = Vector3.new(-413.66, 253.82, -1055.57), 
+    ["🏥 Hospital"] = Vector3.new(-1587.46, 254.27, 18.42), 
+    ["🏰 Mansion"] = Vector3.new(-789.10, 253.57, 1380.76), 
+    ["🔫GunShop 1"] = Vector3.new(92959.8671875, 122098.5, 17244.462890625), 
+    ["🔫GunShop 1 Lobby"] = Vector3.new(-1002.4224, 253.6382, -761.9125), 
+    ["📦 Safe Items"] = Vector3.new(-939, 254, -556), 
+    ["🛒 MarGreens"] = Vector3.new(-381.2075, 254.4538, -385.6654), 
+    ["McDonald's 🍔"] = Vector3.new(-444.8, 254.0, -945.7), 
+    ["Deli Market 🧪"] = Vector3.new(-769, 255, -686), 
+    ["Cook spot🏠"] = Vector3.new(-938.728, 341.395, -515.721)
+}
+
+local function tableKeys(tbl) 
+    local keys = {} 
+    for key in pairs(tbl) do table.insert(keys, key) end 
+    return keys 
+end 
+
+local SelectedLocation = nil 
+local selectedTeleportName = nil
+local staticMapKeys = tableKeys(locations)
+
+-- ==================== HOUSE TELEPORT STORAGE & SCANNER ENGINE ====================
+local HouseLookup = {} 
+local selectedHouseName = nil 
+local currentHouseList = {}
+
+local function ScanBronxHouses() 
+    local list = {}
+    table.clear(HouseLookup) 
+    local folder = workspace:FindFirstChild("HomeDoorSS")
+    if folder then
+        for _, House in ipairs(folder:GetChildren()) do 
+            local Owner = House:FindFirstChild("Owner") 
+            if Owner and Owner.Value ~= "None" then 
+                local Name 
+                if Owner.Value == player.Name then Name = "My House" else Name = Owner.Value .. "'s House" end 
+                table.insert(list, Name) HouseLookup[Name] = House 
+            end 
+        end 
+    end
+    if #list == 0 then table.insert(list, "No houses claimed") end
+    return list
+end 
+
+currentHouseList = ScanBronxHouses()
+-- ==================== MOVEMENT UI INPUT SLIDERS & TOGGLES ====================
+local WalkSpeedToggle = PlayerMovementGroupBox:Toggle({ 
+    Name = 'Enable WalkSpeed', 
+    Flag = "WalkSpeedToggleCacheResetVal",
+    Default = false, 
+    Tooltip = 'Enhanced walk bypass', 
+    Callback = function(Value) 
+        if Value then startEnhancedWalk() else stopEnhancedWalk() end 
+    end 
+}) 
+
+local WalkSpeedSlider = PlayerMovementGroupBox:Slider({ 
+    Name = 'Walk Speed', 
+    Flag = "WalkSpeedSliderCacheResetVal",
+    Default = 16, 
+    Min = 20, 
+    Max = 2000, 
+    Decimals = 0,
+    Callback = function(Value) speed = Value end 
+}) 
+
+-- Fly Routine Initialization Block
+do 
+    local _flyEnabled = false local _flySwim = false local _flySpeed = 5 local _CFloop = nil local _speedConn = nil local _flyPlayer = game:GetService("Players").LocalPlayer local _flyRS = game:GetService("RunService") local _flyCamera = workspace.CurrentCamera 
+    local function _handleSpeed() 
+        if not _flySwim then return end local characterObj = _flyPlayer.Character if not characterObj or not characterObj.Parent then return end local humanoidObj = characterObj:FindFirstChildOfClass("Humanoid") local hrpObj = characterObj:FindFirstChild("HumanoidRootPart") if not humanoidObj or not hrpObj or humanoidObj.Health <= 0 then return end humanoidObj:ChangeState(0) if _flyEnabled then hrpObj.RotVelocity = Vector3.new(0,0,0) return end local moveDir = humanoidObj.MoveDirection if moveDir.Magnitude > 0 then local v = Vector3.new(moveDir.X, 0, moveDir.Z).Unit * (50 * 16) if v.Magnitude == v.Magnitude then hrpObj.Velocity = Vector3.new(v.X, hrpObj.Velocity.Y, v.Z) end else hrpObj.Velocity = Vector3.new(0, hrpObj.Velocity.Y, 0) end hrpObj.RotVelocity = Vector3.new(0,0,0) 
+    end 
+    local function _onCharAdded(char) 
+        if _speedConn then _speedConn:Disconnect() _speedConn = nil end local ok = pcall(function() char:WaitForChild("Humanoid", 5) char:WaitForChild("HumanoidRootPart", 5) end) if not ok then return end _speedConn = _flyRS.Stepped:Connect(function() local s, _ = pcall(_handleSpeed) if not s and _speedConn then _speedConn:Disconnect() _speedConn = nil end end) 
+    end 
+    if _flyPlayer.Character then _onCharAdded(_flyPlayer.Character) end _flyPlayer.CharacterAdded:Connect(_onCharAdded) 
+    local function _startFly() 
+        if _flyEnabled then return end _flyEnabled = true _flySwim = true task.wait(0.2) local characterObj = _flyPlayer.Character or _flyPlayer.CharacterAdded:Wait() if not characterObj then return end local humanoidObj = characterObj:FindFirstChildOfClass("Humanoid") local head = characterObj:FindFirstChild("Head") if not humanoidObj or not head then return end humanoidObj.PlatformStand = true head.Anchored = true if _CFloop then _CFloop:Disconnect() end _CFloop = _flyRS.Heartbeat:Connect(function(dt) if not _flyEnabled or not characterObj or not characterObj.Parent then if _CFloop then _CFloop:Disconnect() end return end local moveDir = humanoidObj.MoveDirection local spd = _flySpeed * dt * 100 local camCF = _flyCamera.CFrame local _, yRot, _ = camCF:ToOrientation() local uprightRot = CFrame.Angles(0, yRot, 0) local flatCF = CFrame.new(camCF.Position) * uprightRot local localInput = flatCF:VectorToObjectSpace(moveDir * spd) local worldMove = camCF:VectorToWorldSpace(localInput) head.CFrame = CFrame.new(head.Position + worldMove) * uprightRot _flyCamera.CameraSubject = head end) 
+    end 
+    local function _stopFly() 
+        if not _flyEnabled then return end _flyEnabled = false _flySwim = false if _CFloop then _CFloop:Disconnect() _CFloop = nil end local characterObj = _flyPlayer.Character if characterObj then local humanoidObj = characterObj:FindFirstChildOfClass("Humanoid") local head = characterObj:FindFirstChild("Head") if humanoidObj then humanoidObj.PlatformStand = false humanoidObj:ChangeState(Enum.HumanoidStateType.Running) end if head then head.Anchored = false end end 
+    end
+    local FlyToggle = PlayerMovementGroupBox:Toggle({ Name = 'Fly', Flag = "FlyToggleCacheResetVal", Default = false, Tooltip = 'Camera-direction fly using head anchor method', Callback = function(state) if state then _startFly() else _stopFly() end end }) 
+    local FlySpeedSlider = PlayerMovementGroupBox:Slider({ Name = 'Fly Speed', Flag = "FlySpeedSliderCacheResetVal", Default = 5, Min = 1, Max = 20, Decimals = 0, Callback = function(v) _flySpeed = v end }) 
+end 
+
+-- Jump Power Configuration Block
+local JumpPowerToggle = PlayerMovementGroupBox:Toggle({ Name = 'Jump Power', Flag = "JumpPowerToggleCacheResetVal", Default = false, Tooltip = 'Enable custom jump height + infinite jump', Callback = function(Value) jumpPowerEnabled = Value local humanoidObj = player.Character and player.Character:FindFirstChild("Humanoid") if Value then if humanoidObj then humanoidObj.JumpPower = currentJumpPower end if infJump then infJump:Disconnect() end infJumpDebounce = false infJump = UserInputService.JumpRequest:Connect(function() if not infJumpDebounce then infJumpDebounce = true if humanoidObj then humanoidObj:ChangeState(Enum.HumanoidStateType.Jumping) task.wait(0.1) humanoidObj:ChangeState(Enum.HumanoidStateType.Seated) end infJumpDebounce = false end end) else if humanoidObj then humanoidObj.JumpPower = 50 end if infJump then infJump:Disconnect() end infJumpDebounce = false end end }) 
+local JumpHeightSlider = PlayerMovementGroupBox:Slider({ Name = 'Change Jump Height', Flag = "JumpHeightSliderCacheResetVal", Default = 50, Min = 1, Max = 100, Decimals = 0, Callback = function(value) currentJumpPower = value local humanoidObj = player.Character and player.Character:FindFirstChild("Humanoid") if humanoidObj and jumpPowerEnabled then humanoidObj.JumpPower = value end end }) 
+
+-- ==================== TELEPORT SHIT ====================
+local function BoxHubTeleport(destinationCFrame)
+    local characterObj = player.Character
+    if not characterObj then
+        Library:Notification("Teleport failed: No character", "89159918534346", 3)
+        return false
+    end
+    
+    local humanoidRootPartObj = characterObj:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPartObj then
+        Library:Notification("Teleport failed: Missing HumanoidRootPart", "89159918534346", 3)
+        return false
+    end
+    
+    local humanoidObj = characterObj:FindFirstChild("Humanoid")
+    if not humanoidObj then
+        Library:Notification("Teleport failed: Humanoid not found", "89159918534346", 3)
+        return false
+    end
+    
+    local success, err = pcall(function()
+        humanoidObj:ChangeState(0)
+        repeat task.wait(0.0001) until not player:GetAttribute("LastACPos")
+        humanoidRootPartObj.CFrame = destinationCFrame
+        task.wait()
+        humanoidObj:ChangeState(2)
+    end)
+    
+    return success, err
+end
+
+-- swim bypass for far tps
+local function SwimBypassTeleport(destinationCFrame)
+    local charObj = player.Character
+    if not charObj or not charObj:FindFirstChild("HumanoidRootPart") then return false end
+    
+    local HRP = charObj.HumanoidRootPart
+    getgenv().SwimMethod = true
+    task.wait(0.25)
+    HRP.CFrame = destinationCFrame + Vector3.new(2, 0, 0)
+    task.delay(0.25, function() getgenv().SwimMethod = false end)
+    return true
+end
+
+-- ==================== MAP TELEPORTS CONFIGURATION ====================
+local LocationDropdown = TeleportSection:Dropdown({ 
+    Name = 'Select Location', Flag = "MapTeleportLocationSelectFlag", Items = staticMapKeys, Default = "", Multi = false, 
+    Callback = function(selectedLocation) 
+        if locations[selectedLocation] then selectedTeleportName = selectedLocation SelectedLocation = locations[selectedLocation] Library:Notification("Location selected: " .. selectedLocation, "129793670226045", 3) else Library:Notification("Error: Location not found!", "129793670226045", 3) end 
+    end 
+}) 
+
+local MapTeleportButton = TeleportSection:Button({ 
+    Name = "Teleport to Location", 
+    Callback = function() 
+        if not selectedTeleportName or not SelectedLocation then 
+            Library:Notification("No location selected!", "129793670226045", 3) 
+            return 
+        end
+        
+        local success, err = BoxHubTeleport(CFrame.new(SelectedLocation))
+        if success then 
+            Library:Notification("Teleported to " .. selectedTeleportName .. "!", "129793670226045", 2) 
+        else 
+            Library:Notification("Teleport failed: " .. tostring(err), "129793670226045", 3) 
+        end 
+    end 
+})
+
+-- safe tp
+local function GetHomeSafePart()
+    local safeFolder = workspace:FindFirstChild("HomeDoorSS") and
+                       workspace.HomeDoorSS:FindFirstChild("HomeDoor") and
+                       workspace.HomeDoorSS.HomeDoor:FindFirstChild("Safe")
+    if not safeFolder then return nil end
+    return safeFolder:FindFirstChild("Union") or safeFolder:FindFirstChildWhichIsA("BasePart")
+end
+
+local SafeTeleportButton = TeleportSection:Button({
+    Name = "🔒 TP to Safe",
+    Callback = function()
+        local safePart = GetHomeSafePart()
+        if safePart then
+            local success, err = BoxHubTeleport(safePart.CFrame * CFrame.new(0, 3, 0))
+            if success then
+                Library:Notification("Teleported to Safe", "129793670226045", 2)
+            else
+                Library:Notification("Safe teleport failed: " .. tostring(err), "129793670226045", 3)
+            end
+        else
+            Library:Notification("Safe not found", "129793670226045", 3)
+        end
+    end
+})
+
+-- hospital tp
+local HospitalTeleportButton = TeleportSection:Button({
+    Name = "🏥 TP to Hospital",
+    Callback = function()
+        local hospitalPart = workspace:FindFirstChild("HospitalPart")
+        if hospitalPart then
+            local success, err = BoxHubTeleport(hospitalPart.CFrame)
+            if success then
+                Library:Notification("Teleported to Hospital", "129793670226045", 2)
+            else
+                Library:Notification("Hospital teleport failed: " .. tostring(err), "129793670226045", 3)
+            end
+        else
+            Library:Notification("Hospital part not found", "129793670226045", 3)
+        end
+    end
+})
+
+-- construction tp
+local ConstructionTeleportButton = TeleportSection:Button({
+    Name = "🚧 TP to Construction",
+    Callback = function()
+        local constructionPos = CFrame.new(-1728, 371, -1172)
+        local success, err = BoxHubTeleport(constructionPos)
+        if success then
+            Library:Notification("Teleported to Construction Site", "129793670226045", 2)
+        else
+            Library:Notification("Construction teleport failed: " .. tostring(err), "129793670226045", 3)
+        end
+    end
+})
+
+local RS = game:GetService("RunService") 
+
+local state = { 
+    Orb = false, 
+    Flash = false, 
+    Cylinder = false, 
+    Tornado = false, 
+    Shells = false, 
+    Spray = false, 
+    ShellSize = 8, 
+    SpraySize = 60, 
+    SprayTime = 20, 
+    SprayTexture = 129793670226045, 
+    Hue = 0, 
+} 
+
+local configs = setmetatable({}, {__mode = "k"}) 
+local originals = setmetatable({}, {__mode = "k"}) 
+local lastCollect = 0 
+local workerRunning = true 
+
+local trackedKeys = { 
+    "BulletColor", "BulletMaterial", "BulletTransparency", "BulletShape", "BulletSize", 
+    "BulletLightEnabled", "BulletLightColor", "BulletMeshEnabled", "MuzzleFlashEnabled", 
+    "MuzzleLightEnabled", "LightColor", "LightBrightness", "LightRange", "LightShadows", 
+    "DisappearTime", "ShellScale", "BulletHoleEnabled", "BulletHoleTexture", 
+    "BulletHoleVisibleTime", "BulletHoleSize", 
+} 
+
+local function saveOriginal(config) 
+    if originals[config] then return end 
+    local values = {} 
+    for index, key in ipairs(trackedKeys) do 
+        values[index] = rawget(config, key) 
+    end 
+    originals[config] = values 
+end 
+
+local function collectConfigs() 
+    if type(getgc) ~= "function" then return end 
+    local ok, objects = pcall(getgc, true) 
+    if not ok or type(objects) ~= "table" then return end 
+    for _, object in ipairs(objects) do 
+        if typeof(object) == "table" then 
+            local function add(config) 
+                if typeof(config) == "table" and rawget(config, "BulletSpeed") then 
+                    configs[config] = true 
+                    saveOriginal(config) 
+                end 
+            end 
+            pcall(function() 
+                add(object) 
+                add(rawget(object, 7)) 
+                add(rawget(object, 8)) 
+            end) 
+        end 
+    end 
+    lastCollect = os.clock() 
+end 
+
+local function restoreConfig(config) 
+    local saved = originals[config] 
+    if not saved then return end 
+    for index, key in ipairs(trackedKeys) do 
+        pcall(function() rawset(config, key, saved[index]) end) 
+    end 
+end 
+
+local function applyConfig(config) 
+    if not config then return end 
+    restoreConfig(config) 
+    if state.Orb then 
+        local color = Color3.fromHSV(state.Hue, 1, 1) 
+        rawset(config, "BulletColor", color) 
+        rawset(config, "BulletMaterial", Enum.Material.Neon) 
+        rawset(config, "BulletTransparency", 0) 
+        rawset(config, "BulletShape", Enum.PartType.Ball) 
+        rawset(config, "BulletSize", Vector3.new(4, 4, 4)) 
+        rawset(config, "BulletLightEnabled", true) 
+        rawset(config, "BulletLightColor", color) 
+        rawset(config, "MuzzleFlashEnabled", false) 
+    end 
+    if state.Flash then 
+        local color = Color3.fromHSV((state.Hue + 0.18) % 1, 1, 1) 
+        rawset(config, "MuzzleLightEnabled", true) 
+        rawset(config, "LightColor", color) 
+        rawset(config, "LightBrightness", 999) 
+        rawset(config, "LightRange", 999) 
+        rawset(config, "LightShadows", true) 
+        rawset(config, "MuzzleFlashEnabled", true) 
+        rawset(config, "DisappearTime", 8) 
+    end 
+    if state.Tornado then 
+        rawset(config, "BulletShape", Enum.PartType.Ball) 
+        rawset(config, "BulletMeshEnabled", false) 
+    elseif state.Cylinder then 
+        rawset(config, "BulletShape", Enum.PartType.Cylinder) 
+        rawset(config, "BulletMeshEnabled", false) 
+    end 
+    if state.Shells then 
+        rawset(config, "ShellScale", Vector3.new(state.ShellSize, state.ShellSize, state.ShellSize)) 
+    end 
+    if state.Spray then 
+        rawset(config, "BulletHoleEnabled", true) 
+        rawset(config, "BulletHoleTexture", {state.SprayTexture}) 
+        rawset(config, "BulletHoleVisibleTime", state.SprayTime) 
+        rawset(config, "BulletHoleSize", state.SpraySize) 
+    end 
+end 
+
+local function anyEnabled() 
+    return state.Orb or state.Flash or state.Cylinder or state.Tornado or state.Shells or state.Spray 
+end 
+
+local function applyAll() 
+    if os.clock() - lastCollect >= 5 then 
+        collectConfigs() 
+    end 
+    for config in pairs(configs) do 
+        pcall(applyConfig, config) 
+    end 
+end 
+
+local function restoreAll() 
+    for config in pairs(configs) do 
+        pcall(restoreConfig, config) 
+    end 
+end 
+
+collectConfigs() 
+
+task.spawn(function() 
+    while workerRunning do 
+        if anyEnabled() then 
+            state.Hue = (state.Hue + 0.012) % 1 
+            applyAll() 
+        end 
+        task.wait(0.05) 
+    end 
+end) 
+
+OrbyGroup:Toggle({ 
+    Name = "Rainbow Orb Bullets", 
+    Default = false, 
+    Callback = function(value) 
+        state.Orb = value 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+        Library:Notification("Rainbow Orb Bullets status: " .. tostring(value), "90449909165261", 2) 
+    end, 
+}) 
+
+OrbyGroup:Toggle({ 
+    Name = "Flashbang Muzzle Light", 
+    Default = false, 
+    Callback = function(value) 
+        state.Flash = value 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+        Library:Notification("Flashbang Muzzle status: " .. tostring(value), "90449909165261", 2) 
+    end, 
+}) 
+
+OrbyGroup:Toggle({ 
+    Name = "Cylinder Bullet Shape", 
+    Default = false, 
+    Callback = function(value) 
+        state.Cylinder = value 
+        if value then state.Tornado = false end 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+    end, 
+}) 
+
+OrbyGroup:Toggle({ 
+    Name = "Tornado Bullet Shape", 
+    Default = false, 
+    Callback = function(value) 
+        state.Tornado = value 
+        if value then state.Cylinder = false end 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+    end, 
+}) 
+
+OrbyGroup:Toggle({ 
+    Name = "Big Ammo Shells", 
+    Default = false, 
+    Callback = function(value) 
+        state.Shells = value 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+    end, 
+}) 
+
+OrbyGroup:Slider({ 
+    Name = "Shell Size", 
+    Min = 1, 
+    Max = 50, 
+    Default = 8, 
+    Rounding = 0, 
+    Callback = function(value) 
+        state.ShellSize = tonumber(value) or 8 
+        if state.Shells then applyAll() end 
+    end, 
+}) 
+
+local sprayTextures = { 
+    ["Spray paint 1"] = 129793670226045, 
+    ["Spray paint 2"] = 129793670226045, 
+    ["Spray paint 3"] = 129793670226045, 
+} 
+
+OrbyGroup:Dropdown({ 
+    Name = "Spray paint style", 
+    Values = {"Spray paint 1", "Spray paint 2", "Spray paint 3"}, 
+    Default = "Spray paint 1", 
+    Multi = false, 
+    Callback = function(value) 
+        state.SprayTexture = sprayTextures[value] or sprayTextures["Spray paint 1"] 
+        if state.Spray then applyAll() end 
+    end, 
+}) 
+
+OrbyGroup:Slider({ 
+    Name = "Spray paint size", 
+    Min = 5, 
+    Max = 300, 
+    Default = 60, 
+    Rounding = 0, 
+    Callback = function(value) 
+        state.SpraySize = tonumber(value) or 60 
+        if state.Spray then applyAll() end 
+    end, 
+}) 
+
+OrbyGroup:Slider({ 
+    Name = "Spray visible time", 
+    Min = 1, 
+    Max = 120, 
+    Default = 20, 
+    Rounding = 0, 
+    Callback = function(value) 
+        state.SprayTime = tonumber(value) or 20 
+        if state.Spray then applyAll() end 
+    end, 
+}) 
+
+OrbyGroup:Toggle({ 
+    Name = "Spray paint", 
+    Default = false, 
+    Callback = function(value) 
+        state.Spray = value 
+        collectConfigs(); applyAll() 
+        if not anyEnabled() then restoreAll() end 
+        Library:Notification("Spray paint status: " .. tostring(value), "129793670226045", 2) 
+    end, 
+}) 
+
+
+
+GunModGroupBox:Label("You no longer need 1 mag to apply infinite ammo.")
+
+local InfiniteAmmoButton = GunModGroupBox:Button({ 
+    Name = "Infinite Ammo", 
+    Callback = function() 
+        local settings, tool = GetGunSettings() 
+        if not settings then return end 
+        settings.LimitedAmmoEnabled = false 
+        settings.MaxAmmo = 80000 
+        settings.AmmoPerMag = 80000 
+        settings.Ammo = 80000 
+        settings.StoredAmmo = 80000 
+        settings.MagCount = 80000 
+        local gunScript = tool:FindFirstChild("GunScript_Local") 
+        if gunScript then 
+            debug.setupvalue(getsenv(gunScript).Reload, 3, 80000) 
+            debug.setupvalue(getsenv(gunScript).Reload, 5, 80000) 
+        end 
+        Library:Notification("Applied Infinite Ammo!", "129793670226045", 2) 
+    end 
+})
+
+local NoRecoilButton = GunModGroupBox:Button({ 
+    Name = "No Recoil", 
+    Callback = function() 
+        local tool = player.Character and player.Character:FindFirstChildOfClass("Tool") 
+        if tool and tool:FindFirstChild("Setting") then 
+            require(tool.Setting).Recoil = 0 
+            Library:Notification("Recoil Removed!", "129793670226045", 2) 
+        else 
+            Library:Notification("Equip a weapon first!", "129793670226045", 2) 
+        end 
+    end 
+})
+
+local InfDamageButton = GunModGroupBox:Button({ 
+    Name = "Infinite Damage", 
+    Callback = function() 
+        local tool = player.Character and player.Character:FindFirstChildOfClass("Tool") 
+        if tool and tool:FindFirstChild("Setting") then 
+            require(tool.Setting).BaseDamage = 9e9 
+            Library:Notification("Instakill Damage Enabled!", "129793670226045", 2) 
+        else 
+            Library:Notification("Equip a weapon first!", "129793670226045", 2) 
+        end 
+    end 
+})
+
+local AutomaticGunButton = GunModGroupBox:Button({ 
+    Name = "Toggle Automatic Fire", 
+    Callback = function() 
+        autoEnabled = not autoEnabled 
+        applyGunSettings() 
+        Library:Notification("Automatic fire status: " .. tostring(autoEnabled), "129793670226045", 2) 
+    end 
+})
+
+local NoFireRateButton = GunModGroupBox:Button({ 
+    Name = "Remove Fire Rate Delay", 
+    Callback = function() 
+        noRateEnabled = not noRateEnabled 
+        applyGunSettings() 
+        Library:Notification("No Fire Rate delay status: " .. tostring(noRateEnabled), "129793670226045", 2) 
+    end 
+})
+
+
+-- =================================================================
+-- NEW BYPASSES SECTION (Right Column / Side = 2)
+-- =================================================================
+BypassGroupBox = CombatPage:Section({ Name = "Bypasses 🛡️", Icon = "129793670226045", Side = 2 })
+
+BypassGroupBox:Toggle({
+    Name = 'Anti Fall Damage',
+    Default = false,
+    Callback = function(Value)
+        if Value then Library:Notification("Anti Fall Damage enabled", "129793670226045", 5) end
+        local character = player.Character or player.CharacterAdded:Wait()
+        local fallDamage = character:FindFirstChild("FallDamageRagdoll")
+        if fallDamage and Value then fallDamage:Destroy() end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Infinite Stamina',
+    Default = false,
+    Callback = function(Value)
+        if Value then Library:Notification("Infinite Stamina enabled", "129793670226045", 5) end
+        local staminaScript = player.PlayerGui.Run.Frame.Frame.Frame:FindFirstChild("StaminaBarScript")
+        if staminaScript then staminaScript.Enabled = false staminaScript:Destroy() end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Infinite Hunger',
+    Default = false,
+    Callback = function(Value)
+        if Value then Library:Notification("Infinite Hunger enabled", "129793670226045", 5) end
+        local hungerScript = player.PlayerGui.Hunger.Frame.Frame.Frame:FindFirstChild("HungerBarScript")
+        if hungerScript then hungerScript.Enabled = false hungerScript:Destroy() end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Infinite Sleep',
+    Default = false,
+    Callback = function(Value)
+        if Value then Library:Notification("Infinite Sleep enabled", "129793670226045", 5) end
+        local sleepBar = game:GetService("StarterGui").SleepGui.Frame.sleep.SleepBar
+        if sleepBar and sleepBar:FindFirstChild("sleepScript") then
+            sleepBar.sleepScript.Enabled = false sleepBar.sleepScript:Destroy()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("SleepSystem") then game:GetService("ReplicatedStorage").SleepSystem:Destroy() end
+            if player.PlayerGui.SleepGui.Frame.sleep.SleepBar:FindFirstChild("sleepScript") then player.PlayerGui.SleepGui.Frame.sleep.SleepBar.sleepScript:Destroy() end
+        end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'No Rent Pay',
+    Default = false,
+    Callback = function(Value)
+        if Value then Library:Notification("No Rent Pay enabled", "129793670226045", 5) end
+        local rentScript = game:GetService("StarterGui").RentGui:FindFirstChild("LocalScript")
+        if rentScript then rentScript.Enabled = false rentScript:Destroy() end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Anti-Knockback',
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Library:Notification("Anti-Knockback enabled", "129793670226045", 5)
+            local character = player.Character or player.CharacterAdded:Wait()
+            for _, v in ipairs(character:GetDescendants()) do if v:IsA("BodyVelocity") or v:IsA("LinearVelocity") or v:IsA("VectorForce") then v:Destroy() end end
+            if game.ReplicatedStorage:FindFirstChild("AE") then game.ReplicatedStorage.AE:Destroy() end
+            character:WaitForChild("HumanoidRootPart").ChildAdded:Connect(function(v) if v:IsA("BodyVelocity") or v:IsA("LinearVelocity") or v:IsA("VectorForce") then v:Destroy() end end)
+        end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Anti-CameraShake',
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Library:Notification("Anti-CameraShake enabled", "129793670226045", 5)
+            local character = player.Character or player.CharacterAdded:Wait()
+            if character:FindFirstChild("CameraBobbing") then character.CameraBobbing:Destroy() end
+            character.ChildAdded:Connect(function(v) if v.Name == "CameraBobbing" then v:Destroy() end end)
+        end
+    end
+})
+
+BypassGroupBox:Toggle({
+    Name = 'Instant Respawn',
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Library:Notification("Instant Respawn enabled", "129793670226045", 5)
+            getgenv().Respawn = true while getgenv().Respawn == true do task.wait(5) game.ReplicatedStorage.RespawnRE:FireServer() end
+        else getgenv().Respawn = false end
+    end
+})
+
+local AntiRagdollConnection
+BypassGroupBox:Toggle({
+    Name = "Anti-Ragdoll ",
+    Default = false,
+    Callback = function(value)
+        if value then
+            Library:Notification("Anti-Ragdoll enabled", "129793670226045", 5)
+            AntiRagdollConnection = RunService.RenderStepped:Connect(function()
+                task.spawn(function()
+                    if player.Character and player.Character:FindFirstChild("Humanoid") then
+                        local state = player.Character.Humanoid:GetState()
+                        if state == Enum.HumanoidStateType.Ragdoll or state == Enum.HumanoidStateType.Physics then player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) end
+                    end
+                end)
+            end)
+        else if AntiRagdollConnection then AntiRagdollConnection:Disconnect() end end
+    end,
+})
+
+do
+    local antiLoseEnabled = false local antiLoseCharConn = nil local antiLoseDiedConn = nil local savedToolNames = {}
+    local function saveTools()
+        savedToolNames = {} local backpack = player:FindFirstChild("Backpack") local character = player.Character
+        if backpack then for _, tool in pairs(backpack:GetChildren()) do if tool:IsA("Tool") then table.insert(savedToolNames, tool.Name) end end end
+        if character then for _, tool in pairs(character:GetChildren()) do if tool:IsA("Tool") then table.insert(savedToolNames, tool.Name) end end end
+    end
+    local function hookCharacter(char)
+        local hum = char:WaitForChild("Humanoid", 5) if not hum then return end saveTools()
+        antiLoseDiedConn = hum.Died:Connect(function()
+            if not antiLoseEnabled then return end saveTools() task.wait(1.5)
+            local backpack = player:FindFirstChild("Backpack") if not backpack then return end
+            local gunsFolder = workspace:FindFirstChild("GUNS")
+            if gunsFolder then
+                for _, toolName in ipairs(savedToolNames) do
+                    local model = gunsFolder:FindFirstChild(toolName)
+                    local prompt = model and model:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then pcall(function() prompt.HoldDuration = 0 fireproximityprompt(prompt) end) end
+                end
+            end
+        end)
+    end
+    BypassGroupBox:Toggle({
+        Name = "Anti Lose Items",
+        Default = false,
+        Callback = function(value)
+            antiLoseEnabled = value
+            if value then
+                Library:Notification("Anti Lose Items enabled", "129793670226045", 3)
+                if player.Character then task.spawn(function() hookCharacter(player.Character) end) end
+                antiLoseCharConn = player.CharacterAdded:Connect(function(char) if antiLoseEnabled then task.spawn(function() hookCharacter(char) end) end end)
+            else
+                if antiLoseCharConn then antiLoseCharConn:Disconnect() antiLoseCharConn = nil end
+				 if antiLoseDiedConn then antiLoseDiedConn:Disconnect() antiLoseDiedConn = nil end savedToolNames = {}
+            end
+        end
+    })
+end
+
+local AntiFling
+BypassGroupBox:Toggle({
+    Name = "Anti-Fling", Default = false,
+    Callback = function(value)
+        if value then
+            Library:Notification("Anti-Fling enabled", "129793670226045", 5)
+            AntiFling = RunService.RenderStepped:Connect(function()
+                task.spawn(function()
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        if player.Character.HumanoidRootPart.AssemblyLinearVelocity.Magnitude > 400 then player.Character.Humanoid.Health = 0 end
+                    end
+                end)
+            end)
+        else if AntiFling then AntiFling:Disconnect() end end
+    end,
+})
+
+local AntiAFKThread
+BypassGroupBox:Toggle({
+    Name = "Stronger Anti-AFK", Default = false,
+    Callback = function(value)
+        if value then
+            Library:Notification("Stronger Anti-AFK enabled", "129793670226045", 3)
+            AntiAFKThread = task.spawn(function()
+                while value do
+                    pcall(function()
+                        game:GetService("VirtualUser"):Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame) task.wait(0.1)
+                        game:GetService("VirtualUser"):Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                    end)
+                    if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                        pcall(function()
+                            player.Character:FindFirstChildOfClass("Humanoid"):Move(Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)), true) task.wait(0.2)
+                            player.Character:FindFirstChildOfClass("Humanoid"):Move(Vector3.new(0, 0, 0), true)
+                        end)
+                    end
+                    task.wait(180 + math.random(30, 90))
+                end
+            end)
+        else
+            if AntiAFKThread then task.cancel(AntiAFKThread); AntiAFKThread = nil end
+            Library:Notification("Stronger Anti-AFK disabled", "90449909165261", 3)
+        end
+    end,
+})
+
+BypassGroupBox:Toggle({
+    Name = "Instant Prompts", Default = false,
+    Callback = function(state)
+        getgenv().instantPrompts = state
+        local connection
+        if state then
+            Library:Notification("Applying instant interact settings, please wait...", "129793670226045", 5) task.wait(2)
+for _, v in ipairs(workspace:GetDescendants()) do if v.ClassName == "ProximityPrompt" then v.HoldDuration = 0 v.MaxActivationDistance = 6 end end
+connection = workspace.DescendantAdded:Connect(function(obj) if obj.ClassName == "ProximityPrompt" then obj.HoldDuration = 0 obj.MaxActivationDistance = 6 end end)
+else
+for _, v in ipairs(workspace:GetDescendants()) do if v.ClassName == "ProximityPrompt" then v.HoldDuration = 1 v.MaxActivationDistance = 4 end end
+if connection then connection:Disconnect(); connection = nil end
+end
+end
+})
+
+getgenv().HospitalHealthCheckIn = 50
+BypassGroupBox:Toggle({
+Name = "Auto Hospital", 
+Default = false,
+Callback = function(value)
+    if value then
+        Library:Notification("Auto-Hospital enabled", "129793670226045", 5) 
+        getgenv().AutoHospital = true
+        while getgenv().AutoHospital == true do
+            task.wait(0.1)
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Anchored == false and player.Character.Humanoid.Health <= tonumber(getgenv().HospitalHealthCheckIn) then
+                SwimTeleport(workspace.HospitalPart.CFrame)
+                repeat task.wait(0.025) fireproximityprompt(workspace.HospitalPart.Prompt, 1) until player.Character.HumanoidRootPart.Anchored == true
+            end
+        end
+    else 
+        getgenv().AutoHospital = false 
+    end
+end,
+})
+
+BypassGroupBox:Slider({
+Name = 'Check-In Health', 
+Default = 50, 
+Min = 5, 
+Max = 80, 
+Rounding = 1,
+Callback = function(Value) 
+    getgenv().HospitalHealthCheckIn = Value 
+end
+})
+
+local BronxHousesDropdown = HouseTeleportGroupBox:Dropdown({ 
+    Name = 'Select House Location',
+    Flag = "BronxHousesDropdownFlag",
+    Items = currentHouseList, 
+    Default = "No houses claimed", 
+    Multi = false, 
+    Callback = function(selectedLocation) 
+        if selectedLocation and selectedLocation ~= "No houses claimed" then 
+            selectedHouseName = selectedLocation 
+            Library:Notification("Selected 📍: " .. tostring(selectedLocation), "90449909165261", 3) 
+        else 
+            selectedHouseName = nil 
+            Library:Notification("House not found..", "129793670226045", 3) 
+        end
+    end
+})
+
+local HouseTeleportButton = HouseTeleportGroupBox:Button({
+    Name = "Teleport To Selected House",
+    Callback = function()
+        if not selectedHouseName then 
+            Library:Notification("No location selected!", "89159918534346", 3) 
+            return 
+        end 
+        local char = player.Character 
+        local hrp = char and char:FindFirstChild("HumanoidRootPart") 
+        if not hrp then 
+            Library:Notification("Teleport failed: missing HumanoidRootPart", "90449909165261", 3) 
+            return 
+        end 
+        local House = HouseLookup[selectedHouseName] 
+        if not House then 
+            Library:Notification("Teleport failed: house not found!", "89159918534346", 3) 
+            return 
+        end 
+        local hum = char:FindFirstChild("Humanoid") 
+        if not hum then 
+            Library:Notification("Teleport failed: Humanoid not found!", "129793670226045", 3) 
+            return 
+        end 
+        local targetPart = House:FindFirstChild("PrimaryPart") or House:FindFirstChildWhichIsA("BasePart") 
+        if not targetPart then 
+            Library:Notification("Teleport failed: no valid house part", "129793670226045", 3) 
+            return 
+        end 
+        
+        local success, err = BoxHubTeleport(targetPart.CFrame + Vector3.new(0, 5, 0))
+        if success then 
+            Library:Notification("Teleported to " .. selectedHouseName .. "!", "90449909165261", 2) 
+        else 
+            Library:Notification("Teleport failed: " .. tostring(err), "90449909165261", 3) 
+        end
+    end
+})
+
+-- Dynamic House Folder Property Change Connection Hooks
+local targetFolder = workspace:FindFirstChild("HomeDoorSS")
+if targetFolder then
+    for _, House in ipairs(targetFolder:GetChildren()) do
+        local Owner = House:FindFirstChild("Owner") 
+        if Owner then 
+            Owner:GetPropertyChangedSignal("Value"):Connect(function() 
+                local updatedList = ScanBronxHouses() 
+                if BronxHousesDropdown and BronxHousesDropdown.UpdateItems then 
+                    BronxHousesDropdown:UpdateItems(updatedList) 
+                end 
+            end) 
+        end
+    end
+end
+
+
+local XenoMoneyGroupBox = PlayerPage:Section({ Name = "Inf Money", Icon = "89159918534346", Side = 1 }) 
+
+XenoMoneyGroupBox:Label("Steps:") 
+XenoMoneyGroupBox:Label("1. Go to the cooking house.") 
+XenoMoneyGroupBox:Label("2. Buy enough to cook one Icefruit Cup.") 
+XenoMoneyGroupBox:Label("3. Cook it.") 
+XenoMoneyGroupBox:Label("4. Make sure the Icefruit Cup is put away AFTER U COOK IT.") 
+XenoMoneyGroupBox:Label("5. Click on Infinite Money.") 
+
+local CookingHouseButton = XenoMoneyGroupBox:Button({ 
+    Name = '👨‍🍳 Cookin House', 
+    Callback = function() 
+        local cookingPos = CFrame.new(-938.728, 341.395, -515.721) 
+        local success, err = BoxHubTeleport(cookingPos)
+        if success then
+            Library:Notification("Teleported to Cooking House!", "129793670226045", 2)
+        else
+            Library:Notification("Teleport failed: " .. tostring(err), "129793670226045", 3)
+        end
+    end 
+}) 
+
+XenoMoneyGroupBox:Label("Buy Cooking Items 👇") 
+
+local FijiButton = XenoMoneyGroupBox:Button({ 
+    Name = "FijiWater", 
+    Callback = function() 
+        game:GetService("ReplicatedStorage").ExoticShopRemote:InvokeServer("FijiWater") 
+    end 
+}) 
+
+local FreshButton = XenoMoneyGroupBox:Button({ 
+    Name = "FreshWater", 
+    Callback = function() 
+        game:GetService("ReplicatedStorage").ExoticShopRemote:InvokeServer("FreshWater") 
+    end 
+}) 
+
+local IceCupButton = XenoMoneyGroupBox:Button({ 
+    Name = "Ice-Fruit Cupz", 
+    Callback = function() 
+        game:GetService("ReplicatedStorage").ExoticShopRemote:InvokeServer("Ice-Fruit Cupz") 
+    end 
+}) 
+
+local IceBagButton = XenoMoneyGroupBox:Button({ 
+    Name = "Ice-Fruit Bag", 
+    Callback = function() 
+        game:GetService("ReplicatedStorage").ExoticShopRemote:InvokeServer("Ice-Fruit Bag") 
+    end 
+}) 
+
+local MaxMoneyButton = XenoMoneyGroupBox:Button({ 
+    Name = "💸 TP TO GET MAX", 
+    Callback = function() 
+        local playerObj = game.Players.LocalPlayer 
+        local camera = game.Workspace.CurrentCamera 
+        local hrpObj = playerObj.Character and playerObj.Character:FindFirstChild("HumanoidRootPart") 
+        local originalCameraType = camera.CameraType 
+        local originalFieldOfView = camera.FieldOfView 
+        local originalCameraShake = camera:FindFirstChild("CameraShake") 
+        local cameraShakeBackup = originalCameraShake and originalCameraShake.Value or nil 
+        
+        local function GetCharacter() 
+            return playerObj and playerObj.Character 
+        end 
+        
+        getgenv().SwimMethod = false 
+        local function enableSwimMethod() 
+            getgenv().SwimMethod = true 
+            task.wait(1) 
+        end 
+        local function disableSwimMethod() 
+            getgenv().SwimMethod = false 
+        end 
+        
+        local function SwimBypassTeleport(destinationCFrame) 
+            local charObj = GetCharacter() 
+            if not charObj or not charObj:FindFirstChild("HumanoidRootPart") then return end 
+            local HRP = charObj.HumanoidRootPart 
+            enableSwimMethod() 
+            task.wait(0.25) 
+            HRP.CFrame = destinationCFrame + Vector3.new(2, 0, 0) 
+            task.delay(0.25, function() disableSwimMethod() end) 
+        end 
+        
+        local tool = playerObj.Backpack:FindFirstChild("Ice-Fruit Cupz") 
+        if tool then 
+            playerObj.Character.Humanoid:EquipTool(tool) 
+        else 
+            Library:Notification("No Ice-Fruit Cupz", "❌ Tool 'Ice-Fruit Cupz' not found in backpack", 3) 
+            return 
+        end 
+        
+        local blackScreen = Instance.new("ScreenGui") 
+        blackScreen.IgnoreGuiInset = true 
+        blackScreen.Parent = game:GetService("CoreGui") 
+        
+        local frame = Instance.new("Frame", blackScreen) 
+        frame.BackgroundColor3 = Color3.new(0, 0, 0) 
+        frame.Size = UDim2.new(1, 0, 1, 0) 
+        frame.Position = UDim2.new(0, 0, 0, 0) 
+        frame.BorderSizePixel = 0 
+        frame.Visible = true 
+        
+        local backgroundImage = Instance.new("ImageLabel", frame) 
+        backgroundImage.Size = UDim2.new(1, 0, 1, 0) 
+        backgroundImage.Position = UDim2.new(0, 0, 0, 0) 
+        backgroundImage.BackgroundTransparency = 1 
+        backgroundImage.Image = "rbxassetid://89159918534346" 
+        backgroundImage.ImageTransparency = 0 
+        backgroundImage.ScaleType = Enum.ScaleType.Stretch 
+        backgroundImage.BorderSizePixel = 0 
+        
+        if not playerObj or not playerObj.Character or not playerObj.Character:FindFirstChild("HumanoidRootPart") then return end 
+        local originalCFrame = playerObj.Character.HumanoidRootPart.CFrame 
+        task.wait(0.5) 
+        
+        local targetCFrame = CFrame.new(-69.822006, 287.063598, -319.794372) 
+        BoxHubTeleport(targetCFrame) 
+        task.wait(0.5) 
+        
+        local cameraOffset = Vector3.new(0, 5, 5) 
+        local angleOffset = Vector3.new(0, -1, 0) 
+        camera.CameraType = Enum.CameraType.Scriptable 
+        
+        getgenv().cameraFollowConnection = game:GetService("RunService").Heartbeat:Connect(function() 
+            if hrpObj then 
+                local characterPos = hrpObj.Position 
+                camera.CFrame = CFrame.new(characterPos + cameraOffset + angleOffset, characterPos + Vector3.new(0, 3, 0)) 
+            end 
+        end) 
+        
+        getgenv().instantPrompts = true 
+        local iceFruitSellPrompt = workspace:WaitForChild("IceFruit Sell"):FindFirstChildOfClass("ProximityPrompt") 
+        if iceFruitSellPrompt then 
+            iceFruitSellPrompt.HoldDuration = 0 
+            iceFruitSellPrompt.MaxActivationDistance = 6 
+            getgenv().updateConnection = game:GetService("RunService").Heartbeat:Connect(function() 
+                if getgenv().instantPrompts and iceFruitSellPrompt.Enabled then 
+                    for _ = 1, 100 do 
+                        fireproximityprompt(iceFruitSellPrompt) 
+                    end 
+                end 
+            end) 
+        end 
+        
+        task.spawn(function() 
+            task.wait(1) 
+            getgenv().instantPrompts = false 
+            if getgenv().updateConnection then 
+                getgenv().updateConnection:Disconnect() 
+                getgenv().updateConnection = nil 
+            end 
+            if iceFruitSellPrompt then 
+                iceFruitSellPrompt.HoldDuration = 1 
+                iceFruitSellPrompt.MaxActivationDistance = 4 
+            end 
+            disableSwimMethod() 
+            if getgenv().cameraFollowConnection then 
+                getgenv().cameraFollowConnection:Disconnect() 
+                getgenv().cameraFollowConnection = nil 
+            end 
+            camera.CameraType = originalCameraType 
+            camera.FieldOfView = originalFieldOfView 
+            if originalCameraShake then 
+                originalCameraShake.Value = cameraShakeBackup 
+            end 
+            blackScreen:Destroy() 
+            Library:Notification("Money vulnerability", "💸 Done Generating money", 2) 
+        end) 
+    end 
+}) 
+
+local ConstructionGroup = PlayerPage:Section({ Name = "Construction AutoFarm", Icon = "89159918534346", Side = 2 })
+local AutoFarmGroupBox = PlayerPage:Section({ Name = "Trash AutoFarm", Icon = "89159918534346", Side = 1 })
+
+local Camera = workspace.CurrentCamera 
+local constructionRunning = false 
+
+local function GetLocalPlayer() 
+    return game.Players.LocalPlayer 
+end 
+
+local function LootTrashPrompt() 
+    for i, v in pairs(workspace:GetDescendants()) do 
+        if v:IsA("ProximityPrompt") and v.Name == "ProximityPrompt" then 
+            if v.Parent.Name == "DumpsterPromt" then 
+                v.HoldDuration = 0 
+                v.RequiresLineOfSight = false 
+                v.MaxActivationDistance = 10 
+            end 
+        end 
+    end 
+end 
+
+local function enableFarmSwim() 
+    getgenv().SwimMethod = true 
+    task.wait(1) 
+end 
+
+local function disableFarmSwim() 
+    getgenv().SwimMethod = false 
+end 
+
+local function SwimFarmTeleport(destinationCFrame) 
+    local player = game.Players.LocalPlayer 
+    local character = player.Character 
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end 
+    local HRP = character.HumanoidRootPart 
+    enableFarmSwim() 
+    task.wait(getgenv().TeleportSettings and getgenv().TeleportSettings.Speed or 0.10) 
+    local offset = Vector3.new(0, 2, 0) 
+    HRP.CFrame = destinationCFrame + offset 
+    task.delay(1, function() disableFarmSwim() end) 
+end 
+
+local function StealMoneyPrompt() 
+    for _, v in pairs(workspace.Dollas:GetDescendants()) do 
+        if v:IsA("ProximityPrompt") and v.Name == "ProximityPrompt" then 
+            v.HoldDuration = 0 
+            v.RequiresLineOfSight = false 
+        end 
+    end 
+end
+
+ConstructionGroup:Toggle({
+    Name = "🚧 Construction AutoFarm",
+    Default = false,
+    Callback = function(Value)
+        local speaker = game:GetService("Players").LocalPlayer
+        if not speaker then return end
+        
+        local function enableSwimMethod() getgenv().SwimMethod = true task.wait(1) end
+        local function disableSwimMethod() getgenv().SwimMethod = false end
+        local function getCharacter() return speaker.Character or speaker.CharacterAdded:Wait() end
+        local function getBackpack() return speaker:FindFirstChild("Backpack") end
+        
+        local function hasPlyWood()
+            local backpack = getBackpack()
+            local character = getCharacter()
+            return (backpack and backpack:FindFirstChild("PlyWood")) or (character and character:FindFirstChild("PlyWood"))
+        end
+        
+        local function equipPlyWood()
+            local backpack = getBackpack()
+            if backpack then
+                local plyWood = backpack:FindFirstChild("PlyWood")
+                if plyWood then plyWood.Parent = getCharacter() end
+            end
+        end
+        
+        local function fireInstantPrompt(prompt)
+            if prompt and prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                prompt.HoldDuration = 0
+                fireproximityprompt(prompt)
+            end
+        end
+        
+        local function grabWood()
+            local char = getCharacter()
+            char:SetPrimaryPartCFrame(CFrame.new(-1727, 371, -1178))
+            task.wait(0.1)
+            while constructionRunning and not hasPlyWood() do
+                local prompt = workspace.ConstructionStuff["Grab Wood"]:FindFirstChildOfClass("ProximityPrompt")
+                fireInstantPrompt(prompt)
+                task.wait(0.1)
+                equipPlyWood()
+            end
+        end
+        
+        local function buildWall(name, position)
+            local prompt = workspace.ConstructionStuff[name]:FindFirstChildOfClass("ProximityPrompt")
+            while constructionRunning and prompt and prompt.Enabled do
+                getCharacter():SetPrimaryPartCFrame(position)
+                fireInstantPrompt(prompt)
+                task.wait(0.05)
+                if not hasPlyWood() then grabWood() end
+            end
+        end
+        
+        local function quitJob()
+            local quitPrompt = workspace.ConstructionStuff:FindFirstChild("Quit Job")
+            if quitPrompt then
+                local prompt = quitPrompt:FindFirstChildOfClass("ProximityPrompt")
+                if prompt then
+                    getCharacter():SetPrimaryPartCFrame(quitPrompt.CFrame + Vector3.new(0, 2, 0))
+                    task.wait(0.2)
+                    fireInstantPrompt(prompt)
+                end
+            end
+        end
+        
+        if Value then
+            constructionRunning = true
+            enableSwimMethod()
+            getCharacter():SetPrimaryPartCFrame(CFrame.new(-1728, 371, -1172))
+            task.wait(0.2)
+            fireInstantPrompt(workspace.ConstructionStuff["Start Job"]:FindFirstChildOfClass("ProximityPrompt"))
+            task.spawn(function()
+                while constructionRunning do
+                    if not hasPlyWood() then grabWood() end
+                    buildWall("Wall2 Prompt", CFrame.new(-1705, 368, -1151))
+                    buildWall("Wall3 Prompt", CFrame.new(-1732, 368, -1152))
+                    buildWall("Wall4 Prompt2", CFrame.new(-1772, 368, -1152))
+                    buildWall("Wall1 Prompt3", CFrame.new(-1674, 368, -1166))
+                    task.wait(1)
+                end
+            end)
+        else
+            if constructionRunning then
+                constructionRunning = false
+                disableSwimMethod()
+                quitJob()
+                
+                -- REMOVED: The code that snapped your character back to the original start position
+            end
+        end
+    end
+})
+AutoFarmGroupBox:Button({ 
+    Name = '🗑️ Loot Trash Once', 
+    Callback = function() 
+        local player = GetLocalPlayer() 
+        local char = player.Character 
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end 
+        if typeof(antifalldmg) == "function" then antifalldmg() end 
+        if typeof(antiragdoll) == "function" then antiragdoll() end 
+        LootTrashPrompt() 
+        
+        -- REMOVED: originalCFrame snapshot line
+        
+        for _, v in pairs(workspace:GetDescendants()) do 
+            if v:IsA("ProximityPrompt") and v.Name == "ProximityPrompt" and v.Parent.Name == "DumpsterPromt" then 
+                local promptPos = v.Parent.CFrame.Position + Vector3.new(0, 0.2, 3) 
+                enableFarmSwim() 
+                task.wait(0.1) 
+                if typeof(BypassTp) == "function" then 
+                    BypassTp(CFrame.new(promptPos), false) 
+                else 
+                    char.HumanoidRootPart.CFrame = CFrame.new(promptPos) 
+                end 
+                local lookAt = v.Parent.Position 
+                char.HumanoidRootPart.CFrame = CFrame.new(char.HumanoidRootPart.Position, lookAt) 
+                if Camera then 
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, lookAt) 
+                end 
+                task.wait(0.3) 
+                for i = 1, 10 do 
+                    if typeof(fireproximityprompt) == "function" then 
+                        fireproximityprompt(v) 
+                    end 
+                end 
+                disableFarmSwim() 
+                task.wait(0.1) 
+            end 
+        end 
+        
+        -- REMOVED: Return teleport bypass logic from this bottom section
+    end, 
+    Tooltip = "Loot all dumpsters once and stay at the last one." 
+})
+
+AutoFarmGroupBox:Toggle({ 
+    Name = '💰 GRAB LOOT BAGS', 
+    Default = false, 
+    Tooltip = 'Automatically grab loot bags using SwimMethod teleport', 
+    Callback = function(Value) 
+        print('[cb] MyToggle changed to:', Value) 
+        collecting = Value 
+        if collecting then 
+            if not farmingCoroutine then 
+                farmingCoroutine = coroutine.create(startCollecting) 
+                coroutine.resume(farmingCoroutine) 
+            end 
+        else 
+            if farmingCoroutine then 
+                coroutine.close(farmingCoroutine) 
+                farmingCoroutine = nil 
+            end 
+        end 
+    end 
+}) 
+
+
+   AutoFarmGroupBox:Button({ 
+    Name = '💰 Collect Dropped Money', 
+    Callback = function() 
+        local player = game.Players.LocalPlayer 
+        local character = player.Character 
+        
+        getgenv().stealm = true 
+        for _, v in pairs(workspace.Dollas:GetDescendants()) do 
+            if v:IsA("ProximityPrompt") and v.Name == "ProximityPrompt" and getgenv().stealm then 
+                StealMoneyPrompt() 
+                if v.Parent and v.Parent:IsA("BasePart") then 
+                    local targetCFrame = v.Parent.CFrame 
+                    local Camera = workspace.CurrentCamera 
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetCFrame.Position) 
+                    SwimFarmTeleport(targetCFrame) 
+                    task.wait(0.25) 
+                    fireproximityprompt(v) 
+                end 
+            end 
+        end 
+        getgenv().stealm = false 
+    end, 
+    Tooltip = 'Click to collect money and stay at the last dropped cash position.' 
+}) 
+
+
+    AutoFarmGroupBox:Button({ 
+    Name = '💵 Studio Robbery', 
+    Callback = function() 
+        print('You clicked a button!') 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/cult200020/hoodie/refs/heads/main/hoodie"))()
+    end, 
+    Tooltip = 'This is the main button' 
+})
+
+	
+-- 1. Day & Night Changer (Time Slider)
+TimeUtilitySection:Slider({
+    Name = "Time of Day",
+    Min = 0,
+    Max = 24,
+    Default = 12,
+    Rounding = 1,
+    Callback = function(Value)
+        game:GetService("Lighting").ClockTime = Value
+    end
+})
+
+-- 2. FPS Boost / Utility Toggles
+TimeUtilitySection:Label("FPS Boost Settings 🚀")
+
+TimeUtilitySection:Toggle({
+    Name = "Remove Textures (Boost FPS)",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            Library:Notification("Removing textures to boost FPS...", "90449909165261", 3)
+            for _, v in ipairs(game:GetDescendants()) do
+                if v:IsA("Texture") or v:IsA("Decal") then
+                    v.Transparency = 1
+                end
+            end
+        end
+    end
+})
+
+TimeUtilitySection:Toggle({
+    Name = "Disable Shadows",
+    Default = false,
+    Callback = function(Value)
+        game:GetService("Lighting").GlobalShadows = not Value
+        Library:Notification("Global shadows status: " .. tostring(not Value), "90449909165261", 2)
+    end
+})
+
+TimeUtilitySection:Button({
+    Name = "Unlock FPS (Cap Remove)",
+    Callback = function()
+        if setfpscap then
+            setfpscap(999)
+            Library:Notification("FPS Cap Unlocked to 999!", "90449909165261", 3)
+        else
+            Library:Notification("Your executor does not support setfpscap!", "90449909165261", 3)
+        end
+    end
+})
+
+-- =================================================================
+-- RIGHT COLUMN: SKYBOX SELECTION (Attaches to SkyboxSection)
+-- =================================================================
+
+-- Helper function to clear previous skyboxes before setting a new one
+local function clearOldSky()
+    for _, child in ipairs(game:GetService("Lighting"):GetChildren()) do
+        if child:IsA("Sky") then
+            child:Destroy()
+        end
+    end
+end
+
+SkyboxSection:Button({
+    Name = '🌇 Spongebob Sky',
+    Callback = function()
+        clearOldSky()
+        local s = Instance.new("Sky", game:GetService("Lighting"))
+        s.SkyboxBk = "rbxassetid://133395736254761"
+        s.SkyboxDn = "rbxassetid://133395736254761"
+        s.SkyboxFt = "rbxassetid://133395736254761"
+        s.SkyboxLf = "rbxassetid://133395736254761"
+        s.SkyboxRt = "rbxassetid://133395736254761"
+        s.SkyboxUp = "rbxassetid://133395736254761"
+        Library:Notification("Spongebob Sky applied!", "90449909165261", 2)
+    end
+})
+
+SkyboxSection:Button({
+    Name = '🌌 Galaxy Sky',
+    Callback = function()
+        clearOldSky()
+        local s = Instance.new("Sky", game:GetService("Lighting"))
+        s.SkyboxBk = "rbxassetid://159454299"
+        s.SkyboxDn = "rbxassetid://159454296"
+        s.SkyboxFt = "rbxassetid://159454293"
+        s.SkyboxLf = "rbxassetid://159454286"
+        s.SkyboxRt = "rbxassetid://159454300"
+        s.SkyboxUp = "rbxassetid://159454288"
+        Library:Notification("Galaxy Sky applied!", "90449909165261", 2)
+    end
+})
+
+SkyboxSection:Button({
+    Name = '🐰 Looney Tunes Sky',
+    Callback = function()
+        clearOldSky()
+        local s = Instance.new("Sky", game:GetService("Lighting"))
+        s.SkyboxBk = "rbxassetid://86274903738973"
+        s.SkyboxDn = "rbxassetid://86274903738973"
+        s.SkyboxFt = "rbxassetid://86274903738973"
+        s.SkyboxLf = "rbxassetid://86274903738973"
+        s.SkyboxRt = "rbxassetid://86274903738973"
+        s.SkyboxUp = "rbxassetid://86274903738973"
+        Library:Notification("Looney Tunes Sky applied!", "90449909165261", 2)
+    end
+})
+
+SkyboxSection:Button({
+    Name = 'Simpsons Sky',
+    Callback = function()
+        clearOldSky()
+        local s = Instance.new("Sky", game:GetService("Lighting"))
+        s.SkyboxBk = "rbxassetid://131336818699662"
+        s.SkyboxDn = "rbxassetid://131336818699662"
+        s.SkyboxFt = "rbxassetid://131336818699662"
+        s.SkyboxLf = "rbxassetid://131336818699662"
+        s.SkyboxRt = "rbxassetid://131336818699662"
+        s.SkyboxUp = "rbxassetid://131336818699662"
+        Library:Notification("Simpsons Sky applied!", "90449909165261", 2)
+    end
+})
+
+SkyboxSection:Button({
+    Name = 'shadow Scripts Sky',
+    Callback = function()
+        clearOldSky()
+        local s = Instance.new("Sky", game:GetService("Lighting"))
+        s.SkyboxBk = "rbxassetid://129793670226045"
+        s.SkyboxDn = "rbxassetid://129793670226045"
+        s.SkyboxFt = "rbxassetid://129793670226045"
+        s.SkyboxLf = "rbxassetid://129793670226045"
+        s.SkyboxRt = "rbxassetid://129793670226045"
+        s.SkyboxUp = "rbxassetid://129793670226045"
+        Library:Notification("shadow Scripts Sky applied!", "89159918534346", 2)
+    end
+})
+
+SkyboxSection:Button({
+    Name = 'Reset Skybox',
+    Callback = function()
+        clearOldSky()
+        Library:Notification("Skybox reset to default game lighting.", "90449909165261", 2)
+    end
+})	
+	
+-- ==========================================
+-- SHOPS SECTION
+-- ==========================================
+ShopGroupBox = DiscordPage:Section({ Name = "Shops 🛒", Icon = "131145598162617", Side = 2 })
+
+ShopGroupBox:Toggle({
+    Name = 'Bronx Market',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('Bronx Market 2')
+        if gui then gui.Enabled = state else Library:Notification("Bronx Market GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'Tattoo Shop',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('Bronx TATTOOS')
+        if gui then gui.Enabled = state else Library:Notification("Tattoo Shop GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'Open Trunk',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('TRUNK STORAGE')
+        if gui then gui.Enabled = state else Library:Notification("Trunk GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'BRONX PAWNING',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('Bronx PAWNING')
+        if gui then gui.Enabled = state else Library:Notification("Pawn Shop GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'BRONX CLOTHING',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('Bronx CLOTHING')
+        if gui then gui.Enabled = state else Library:Notification("Clothing GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'Gas Station',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('ShopGUI')
+        if gui then gui.Enabled = state else Library:Notification("Gas Station GUI not found", "89159918534346", 3) end
+    end
+})
+
+ShopGroupBox:Toggle({
+    Name = 'EXOTIC DEALER',
+    Default = false,
+    Callback = function(state)
+        local gui = game.Players.LocalPlayer.PlayerGui:FindFirstChild('ThaShop')
+        if gui then gui.Enabled = state else Library:Notification("Exotic Dealer GUI not found", "89159918534346", 3) end
+    end
+})
+
+-- =================================================================
+-- ESP VISUALS SECTION (Left Column / Side = 1)
+-- =================================================================
+local ESPGroupBox = EspPage:Section({ Name = "ESP Options", Icon = "131145598162617", Side = 1 })
+
+ESPGroupBox:Toggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.enabled = Value 
+            SenseESPInterface.teamSettings.friendly.enabled = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        else 
+            Library:Notification("ESP Error: Sense ESP not loaded", "90449909165261", 2) 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Name ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            if typeof(applyESPNameStyle) == "function" then applyESPNameStyle() end
+            SenseESPInterface.teamSettings.enemy.name = Value 
+            SenseESPInterface.teamSettings.friendly.name = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Name ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        else 
+            Library:Notification("ESP Error: Sense ESP not loaded", "90449909165261", 2) 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Box ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.box = Value 
+            SenseESPInterface.teamSettings.friendly.box = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Box ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        else 
+            Library:Notification("ESP Error: Sense ESP not loaded", "90449909165261", 2) 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Box Fill",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.boxFill = Value 
+            SenseESPInterface.teamSettings.friendly.boxFill = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Box Fill: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Box Outline",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.boxOutline = Value 
+            SenseESPInterface.teamSettings.friendly.boxOutline = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Box Outline: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Health ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.healthBar = Value 
+            SenseESPInterface.teamSettings.friendly.healthBar = Value 
+            SenseESPInterface.teamSettings.enemy.healthText = Value 
+            SenseESPInterface.teamSettings.friendly.healthText = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Health ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Line ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.tracer = Value 
+            SenseESPInterface.teamSettings.friendly.tracer = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Line ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable 3D Box ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.box3d = Value 
+            SenseESPInterface.teamSettings.friendly.box3d = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("3D Box ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Distance ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.distance = Value 
+            SenseESPInterface.teamSettings.friendly.distance = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Distance ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+ESPGroupBox:Toggle({
+    Name = "Enable Chams ESP",
+    Default = false,
+    Callback = function(Value)
+        if SenseESPInterface then 
+            SenseESPInterface.teamSettings.enemy.chams = Value 
+            SenseESPInterface.teamSettings.friendly.chams = Value 
+            if not isLoadingConfiguration then 
+                Library:Notification("Chams ESP: " .. (Value and "Enabled" or "Disabled"), "89159918534346", 2) 
+            end 
+        end 
+    end,
+})
+
+playertpGroupBox = VisualsPage:Section({ Name = "Player Tp 🏠", Icon = "rbxassetid://89159918534346", Side = 1 })
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local function GetPlayerNames() 
+    local names = {} 
+    for _, p in ipairs(Players:GetPlayers()) do 
+        if p ~= Players.LocalPlayer then 
+            table.insert(names, p.Name) 
+        end 
+    end 
+    return names 
+end 
+
+local selectedTargetPlayer = nil
+local spectating = false 
+local spectateConnection 
+local allowedTools = { Cleaver = true, Axe = true, Blade = true, Machete = true } 
+local circleConnection = nil 
+local originalPositions = {} 
+local originalToolStates = {} 
+local playerCircleRadius = 15 
+
+local function GetAttackEvent(tool) 
+    if tool then 
+        local meleeSystem = tool:FindFirstChild("MeleeSystem") 
+        if meleeSystem and meleeSystem:FindFirstChild("AttackEvent") then 
+            return meleeSystem.AttackEvent 
+        end 
+    end 
+    return nil 
+end 
+
+local function HasKnife(plr) 
+    local character = plr.Character 
+    local backpack = plr:FindFirstChild("Backpack") 
+    if character then 
+        for _, tool in pairs(character:GetChildren()) do 
+            if tool:IsA("Tool") and allowedTools[tool.Name] then return true end 
+        end 
+    end 
+    if backpack then 
+        for _, tool in pairs(backpack:GetChildren()) do 
+            if tool:IsA("Tool") and allowedTools[tool.Name] then return true end 
+        end 
+    end 
+    return false 
+end 
+
+local function CrazyKnifeSequence() 
+    local player = Players.LocalPlayer 
+    local character = player.Character 
+    local hrp = character and character:FindFirstChild("HumanoidRootPart") 
+    if not character or not hrp then return end 
+    
+    if not selectedTargetPlayer then
+        Library:Notification("Error: No player selected!", "90449909165261", 3)
+        return
+    end
+    
+    local tool = character:FindFirstChildWhichIsA("Tool") 
+    local attackEvent = GetAttackEvent(tool) 
+    local target = Players:FindFirstChild(selectedTargetPlayer) 
+    if not target or not target.Character then return end 
+    
+    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart") 
+    local humanoid = target.Character:FindFirstChild("Humanoid") 
+    
+    if not HasKnife(player) then 
+        Library:Notification("Must buy knife first", "90449909165261", 5) 
+        return 
+    end 
+    
+    if tool and allowedTools[tool.Name] and attackEvent and targetHRP and humanoid and humanoid.Health > 0 then 
+        local originalCFrame = hrp.CFrame 
+        getgenv().SwimMethod = true
+        task.wait(1)
+        
+        while humanoid.Health > 0 and selectedTargetPlayer == target.Name do 
+            hrp.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 1.2) 
+            attackEvent:FireServer() 
+            task.wait(0.05) 
+        end 
+        
+        hrp.CFrame = originalCFrame 
+        getgenv().SwimMethod = false
+        Library:Notification(target.Name .. " is dead.", "90449909165261", 5) 
+    end 
+end 
+
+-- 1. Player Dropdown Selector
+local PlayerSelectDropdown = playertpGroupBox:Dropdown({ 
+    Name = "Select Player 👤", 
+    Content = GetPlayerNames(), -- MUST be capitalized 'Content' to override the default text
+    Default = nil, 
+    Multi = false, 
+    Callback = function(val) 
+        selectedTargetPlayer = val 
+        Library:Notification("Selected Target: " .. tostring(val), "90449909165261", 2) 
+    end 
+})
+
+-- Automatically refresh the dropdown menu when players change
+local function RefreshList()
+    pcall(function()
+        -- Uses the exact Refresh command supported by your UI library
+        PlayerSelectDropdown:Refresh(GetPlayerNames())
+    end)
+end
+
+-- Listen for server changes
+Players.PlayerAdded:Connect(RefreshList)
+Players.PlayerRemoving:Connect(RefreshList)
+
+-- 2. Teleport To Player Button
+playertpGroupBox:Button({ 
+    Name = "Teleport to Player ⚡", 
+    Callback = function() 
+        if not selectedTargetPlayer then 
+            Library:Notification("Error: No player selected!", "90449909165261", 3) 
+            return 
+        end 
+        
+        local target = Players:FindFirstChild(selectedTargetPlayer) 
+        local myChar = Players.LocalPlayer.Character 
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart") 
+        
+        if myChar and target and target.Character and myHRP and target.Character:FindFirstChild("HumanoidRootPart") then 
+            local targetHRP = target.Character.HumanoidRootPart
+            
+            local success, err = BoxHubTeleport(targetHRP.CFrame * CFrame.new(0, 3.5, 2))
+            
+            if success then
+                Library:Notification("Teleported to " .. tostring(selectedTargetPlayer), "90449909165261", 3)
+            else
+                Library:Notification("Teleport failed: " .. tostring(err), "90449909165261", 3)
+            end
+        end 
+    end 
+})
+-- 3. Spectate Toggle
+playertpGroupBox:Toggle({
+    Name = "Spectate Player 🎥",
+    Default = false,
+    Callback = function(state)
+        spectating = state 
+        if not selectedTargetPlayer then 
+            Library:Notification("Error: Select a player first!", "90449909165261", 3)
+            return 
+        end
+        local targetPlayer = Players:FindFirstChild(selectedTargetPlayer) 
+        local camera = workspace.CurrentCamera 
+        if not targetPlayer then return end 
+        
+        if spectating then 
+            spectateConnection = task.spawn(function() 
+                while spectating and targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Humanoid") do 
+                    camera.CameraSubject = targetPlayer.Character.Humanoid 
+                    task.wait(0.1) 
+                end 
+            end) 
+        else 
+            if spectateConnection then task.cancel(spectateConnection) end 
+            if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid") then
+                camera.CameraSubject = Players.LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid") 
+            end
+        end 
+    end
+})
+
+-- 4. Knife Kill Execution Button
+playertpGroupBox:Button({
+    Name = "Kill Player Wit Knife 🔪",
+    Callback = function()
+        local player = Players.LocalPlayer 
+        local backpack = player:FindFirstChild("Backpack") 
+        if backpack then 
+            for _, item in pairs(backpack:GetChildren()) do 
+                if item:IsA("Tool") and allowedTools[item.Name] then 
+                    item.Parent = player.Character 
+                    break 
+                end 
+            end 
+        end 
+        task.spawn(CrazyKnifeSequence) 
+    end
+})
+
+-- 5. Bring All Toggle (Completing your split sequence loops)
+playertpGroupBox:Toggle({
+    Name = "Bring All 🌀",
+    Default = false,
+    Callback = function(state)
+        local localPlayer = Players.LocalPlayer
+        if circleConnection then circleConnection:Disconnect() circleConnection = nil end 
+        
+        if state then 
+            originalPositions = {} 
+            originalToolStates = {} 
+            local allPlayers = Players:GetPlayers() 
+            local orbitPlayers = {}
+            
+            for _, player in ipairs(allPlayers) do 
+                if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
+                    originalPositions[player.Name] = player.Character.HumanoidRootPart.CFrame 
+                    table.insert(orbitPlayers, player) 
+                    
+                    for _, tool in ipairs(player.Backpack:GetChildren()) do 
+                        if tool:IsA("Tool") and tool:FindFirstChild("Handle") then 
+                            originalToolStates[player.Name] = originalToolStates[player.Name] or {} 
+                            originalToolStates[player.Name][tool.Name] = tool.Parent 
+                            tool.Parent = nil 
+                        end 
+                    end 
+                    for _, tool in ipairs(player.Character:GetChildren()) do 
+                        if tool:IsA("Tool") and tool:FindFirstChild("Handle") then 
+                            originalToolStates[player.Name] = originalToolStates[player.Name] or {} 
+                            originalToolStates[player.Name][tool.Name] = tool.Parent 
+                            tool.Parent = nil 
+                        end 
+                    end 
+                end 
+            end 
+            
+            circleConnection = RunService.Heartbeat:Connect(function() 
+                local localRoot = localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") 
+                if not localRoot then return end 
+                local angleStep = (2 * math.pi) / #orbitPlayers 
+                for index, player in ipairs(orbitPlayers) do 
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
+                        local angle = index * angleStep 
+                        local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * playerCircleRadius 
+                        local targetPos = localRoot.Position + offset 
+                        player.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos, localRoot.Position) 
+                    end 
+                end 
+            end) 
+        else 
+            for name, cframe in pairs(originalPositions) do 
+                local player = Players:FindFirstChild(name) 
+                if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then 
+                    player.Character.HumanoidRootPart.CFrame = cframe 
+                end 
+            end 
+            originalPositions = {} 
+            for playerName, tools in pairs(originalToolStates) do 
+                local player = Players:FindFirstChild(playerName) 
+                if player then 
+                    for toolName, originalParent in pairs(tools) do 
+                        local tool = player:FindFirstChild(toolName) or player.Backpack:FindFirstChild(toolName) 
+                        if tool then tool.Parent = originalParent end 
+                    end 
+                end 
+            end 
+
+originalToolStates = {}
+if circleConnection then 
+    circleConnection:Disconnect() 
+    circleConnection = nil 
+end
+end
+end
+})
+
+-- 6. Kill Target Button (Remote Instakill Network Exploit Module)
+PlayerTeleportGroupBox:Button({
+    Name = "Kill Player 🎯",
+    Callback = function()
+        if not selectedTargetPlayer then
+            Library:Notification("Error: No target selected!", "90449909165261", 3)
+            return
+        end
+        
+        local targetPlayer = Players:FindFirstChild(selectedTargetPlayer)
+        if not targetPlayer or not targetPlayer.Character then return end
+        
+        local lp = Players.LocalPlayer
+        local char = lp.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if not root or not targetRoot then return end
+        
+        local success, err = BoxHubTeleport(targetRoot.CFrame * CFrame.new(0, 2, -2))
+        
+        if not success then
+            Library:Notification("Teleport failed: " .. tostring(err), "90449909165261", 3)
+            return
+        end
+        
+        task.wait(0.15)
+        
+        local function getGun()
+            local gunTool = nil
+            local scripts = {"GunScript_Local", "GunScript_Server"}
+            for _, place in pairs({lp.Backpack, lp.Character}) do
+                if not place then continue end
+                for _, v in pairs(place:GetDescendants()) do
+                    if v:IsA("LocalScript") and table.find(scripts, v.Name) then
+                        gunTool = v.Parent
+                        break
+                    end
+                end
+                if gunTool then break end
+            end
+            if gunTool and gunTool:IsA("Tool") then
+                if lp.Character:FindFirstChild("Humanoid") then
+                    lp.Character.Humanoid:EquipTool(gunTool)
+                end
+                return gunTool
+            end
+            return nil
+        end
+        
+        local gun = getGun()
+        if not gun then
+            Library:Notification("Error: Gun not found inside assets!", "90449909165261", 3)
+            return
+        end
+        
+        local function visualizeMuzzle(tool)
+            local handle = tool:FindFirstChild("Handle")
+            local muzzle = tool:FindFirstChild("GunScript_Local") and tool.GunScript_Local:FindFirstChild("MuzzleEffect")
+            if handle and muzzle and ReplicatedStorage:FindFirstChild("VisualizeMuzzle") then
+                ReplicatedStorage.VisualizeMuzzle:FireServer(handle, true, {false, 7, Color3.new(1, 1.1098, 0), 15, true, 0.02}, muzzle)
+            end
+        end
+        
+        local function dmg(target, hpart, damage)
+            local tool = lp.Character:FindFirstChildWhichIsA("Tool")
+            if not tool then return end
+            visualizeMuzzle(tool)
+            ReplicatedStorage.InflictTarget:FireServer(
+                tool, 
+                lp, 
+                target.Character.Humanoid, 
+                target.Character[hpart], 
+                damage,
+                {0, 0, false, false, tool.GunScript_Server.IgniteScript, tool.GunScript_Server.IcifyScript, 100, 100},
+                {false, 5, math.random(2,4)}, 
+                target.Character[hpart], 
+                {false, {1930359546}, 1, 1.3 + math.random(10,30)/100, 1}, 
+                nil, 
+                nil, 
+                true
+            )
+        end
+        
+        pcall(function()
+            for i = 1, 4 do
+                dmg(targetPlayer, "Head", 250 + math.random(0,50))
+                task.wait(0.03 + math.random(1,5)/100)
+            end
+        end)
+        
+        Library:Notification("Killed " .. tostring(selectedTargetPlayer), "90449909165261", 3)
+    end
+})
+
+	Library:CreateSettingsPage(Window)
+
+
+XenoMoneyGroupBox:Keybind({ 
+    Name = "Menu Keybind",
+    Flag = "MenuKey", 
+    Default = Enum.KeyCode.RightControl, 
+    Mode = "Toggle", 
+    Callback = function(state) 
+        Window:SetOpen(state) 
+    end 
+})
